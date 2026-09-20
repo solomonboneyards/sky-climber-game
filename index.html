@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Sky Climber - Zıplama Macerası</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-wrapper">
+    <div id="game-container">
+      <canvas id="gameCanvas" width="420" height="750"></canvas>
+
+      <!-- Üst HUD Barı -->
+      <div id="hud">
+        <div class="hud-left">
+          <button id="sound-btn" class="hud-btn" aria-label="Ses">🔊</button>
+        </div>
+        <div class="hud-center">
+          <div class="hud-top-row">
+            <div class="hud-item"><span class="icon">⭐</span> <span id="score-val">0</span>m</div>
+            <div class="hud-item checkpoint-tag"><span class="icon">🚩</span> <span id="cp-val">0m</span></div>
+          </div>
+          <div class="hud-bottom-row">
+            <div class="hud-item lives-tag"><span id="lives-val">❤️❤️❤️</span></div>
+            <div class="hud-item jump-tag"><span id="jump-val"></span></div>
+          </div>
+        </div>
+        <div class="hud-right">
+          <button id="pause-btn" class="hud-btn" aria-label="Duraklat">⏸️</button>
+        </div>
+      </div>
+
+      <!-- Roket Güç Göstergesi -->
+      <div id="rocket-bar-container" class="hidden">
+        <div class="rocket-label">🚀 ROKET BOOST!</div>
+        <div class="rocket-bar-track">
+          <div id="rocket-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- Mobil Dokunmatik Alanlar -->
+      <div id="touch-controls">
+        <div id="touch-left" class="touch-zone">
+          <span class="touch-text">◀ SOL</span>
+        </div>
+        <div id="touch-right" class="touch-zone">
+          <span class="touch-text">SAĞ ▶</span>
+        </div>
+      </div>
+
+      <!-- Başlangıç Ekranı -->
+      <div id="start-screen" class="overlay-screen">
+        <div class="menu-card">
+          <div class="game-logo">🚀</div>
+          <h1 class="game-title">SKY CLIMBER</h1>
+          <p class="game-subtitle">Zıpla, Bonusları Topla, Zirveye Çık!</p>
+          
+          <div class="instructions-box">
+            <div class="instruction-line"><span>📱</span> <strong>Mobil:</strong> Ekranın soluna veya sağına dokun</div>
+            <div class="instruction-line"><span>💻</span> <strong>Klavye:</strong> Sol / Sağ Ok Tuşları veya A - D</div>
+            <div class="instruction-line"><span>✨</span> <strong>Çift Zıplama:</strong> Havadayken Boşluk / Yukarı Ok / Ekranın üst kısmına dokun</div>
+            <div class="instruction-line"><span>🚀</span> <strong>Roket:</strong> Jet hızıyla yukarı fırlatır! (Zincirleme için roket topla)</div>
+            <div class="instruction-line"><span>🌀</span> <strong>Süper Yay:</strong> Yüksek irtifaya sıçratır</div>
+            <div class="instruction-line"><span>🚩</span> <strong>Checkpoint:</strong> Her 300m'de bir kayıt noktası</div>
+            <div class="instruction-line"><span>👾</span> <strong>Canavarlar:</strong> Çarpma! Kafalarına basarak yok et</div>
+            <div class="instruction-line"><span>❤️</span> <strong>Can:</strong> 3 canın var, yolda ❤️ topla</div>
+          </div>
+
+          <button id="start-btn" class="primary-btn" onclick="window.game && window.game.startNewGame(false)">OYUNA BAŞLA</button>
+
+          <div id="start-scoreboard" class="scoreboard-box hidden">
+            <div class="scoreboard-title">🏆 REKOR TABLOSU</div>
+            <div id="start-scores-list" class="scores-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Oyun Bitti / Canlanma Ekranı -->
+      <div id="game-over-screen" class="overlay-screen hidden">
+        <div class="menu-card">
+          <div class="game-logo" id="over-icon">💀</div>
+          <h2 class="game-title">OYUN BİTTİ</h2>
+          
+          <div class="score-summary">
+            <div class="summary-row"><span>Skor:</span> <strong id="final-score">0m</strong></div>
+            <div class="summary-row"><span>En Yüksek:</span> <strong id="high-score">0m</strong></div>
+            <div class="summary-row" id="cp-row"><span>Son Checkpoint:</span> <strong id="last-cp-score">0m</strong></div>
+          </div>
+
+          <button id="revive-cp-btn" class="primary-btn cp-btn hidden">🚩 CHECKPOINT'TEN DEVAM ET</button>
+          <button id="restart-btn" class="secondary-btn" onclick="window.game && window.game.startNewGame(false)">SIFIRDAN BAŞLA</button>
+
+          <div id="gameover-scoreboard" class="scoreboard-box">
+            <div class="scoreboard-title">🏆 REKOR TABLOSU</div>
+            <div id="gameover-scores-list" class="scores-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- İsim Girme Ekranı (Yeni Rekor) -->
+      <div id="name-entry-screen" class="overlay-screen hidden">
+        <div class="menu-card">
+          <div class="game-logo">🏆</div>
+          <h2 class="game-title">YENİ REKOR!</h2>
+          <p class="game-subtitle" id="name-entry-score">0m</p>
+          <p class="name-prompt">İsminizi girin (3 harf):</p>
+          <div class="name-input-row">
+            <input type="text" id="name-input-1" class="name-char-input" maxlength="1" autocomplete="off" autofocus>
+            <input type="text" id="name-input-2" class="name-char-input" maxlength="1" autocomplete="off">
+            <input type="text" id="name-input-3" class="name-char-input" maxlength="1" autocomplete="off">
+          </div>
+          <button id="name-submit-btn" class="primary-btn">KAYDET</button>
+        </div>
+      </div>
+
+      <!-- Duraklatma Ekranı -->
+      <div id="pause-screen" class="overlay-screen hidden">
+        <div class="menu-card">
+          <h2>OYUN DURAKLATILDI</h2>
+          <button id="resume-btn" class="primary-btn">DEVAM ET</button>
+          <button id="pause-restart-btn" class="secondary-btn">YENİDEN BAŞLA</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="sounds_data.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
