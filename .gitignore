@@ -16,3 +16,6 @@ android/app/src/main/assets/
 # OS
 Thumbs.db
 .DS_Store
+
+# Secrets
+config.json
