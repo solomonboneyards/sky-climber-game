@@ -195,6 +195,14 @@ class Game {
     this.lastCheckpointScore = 0;
     this.rocketChainCount = 0;
 
+    // GitHub Skor Senkronizasyonu
+    this.SCORES_RAW_URL = 'https://raw.githubusercontent.com/solomonboneyards/sky-climber-game/main/scores.json';
+    this.SCORES_API_URL = 'https://api.github.com/repos/solomonboneyards/sky-climber-game/contents/scores.json';
+    this.GITHUB_TOKEN = '';
+    this.scoresSha = null;
+    this.syncingScores = false;
+    this.loadConfig().then(() => this.loadOnlineScores());
+
     // Oyuncu Fizik Ayarları
     this.player = {
       x: this.width / 2 - 19,
@@ -1076,11 +1084,86 @@ class Game {
     return score > 0 && (this.scores.length < 10 || score > this.scores[this.scores.length - 1].score);
   }
 
+  async loadConfig() {
+    try {
+      const res = await fetch('config.json?t=' + Date.now());
+      if (res.ok) {
+        const cfg = await res.json();
+        if (cfg.SCORES_RAW_URL) this.SCORES_RAW_URL = cfg.SCORES_RAW_URL;
+        if (cfg.SCORES_API_URL) this.SCORES_API_URL = cfg.SCORES_API_URL;
+        if (cfg.GITHUB_TOKEN) this.GITHUB_TOKEN = cfg.GITHUB_TOKEN;
+      }
+    } catch (e) {
+      console.log('Config yüklenemedi, varsayılan URL kullanılıyor');
+    }
+  }
+
+  async loadOnlineScores() {
+    try {
+      const res = await fetch(this.SCORES_RAW_URL + '?t=' + Date.now());
+      if (res.ok) {
+        const onlineScores = await res.json();
+        if (Array.isArray(onlineScores) && onlineScores.length > 0) {
+          this.scores = onlineScores;
+          localStorage.setItem('skyclimber_scores', JSON.stringify(this.scores));
+        }
+      }
+      const apiRes = await fetch(this.SCORES_API_URL, {
+        headers: { 'Authorization': 'token ' + this.GITHUB_TOKEN, 'Accept': 'application/vnd.github+json' }
+      });
+      if (apiRes.ok) {
+        const data = await apiRes.json();
+        this.scoresSha = data.sha;
+      }
+      this.renderScoreboard(this.startScoresList);
+      if (this.scores.length > 0) this.startScoreboard.classList.remove('hidden');
+    } catch (e) {
+      console.log('Online skor yüklenemedi:', e);
+    }
+  }
+
+  async pushOnlineScores() {
+    if (this.syncingScores) return;
+    this.syncingScores = true;
+    try {
+      if (!this.scoresSha) {
+        const apiRes = await fetch(this.SCORES_API_URL, {
+          headers: { 'Authorization': 'token ' + this.GITHUB_TOKEN, 'Accept': 'application/vnd.github+json' }
+        });
+        if (apiRes.ok) {
+          const data = await apiRes.json();
+          this.scoresSha = data.sha;
+        }
+      }
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(this.scores, null, 2))));
+      const body = { message: 'Update scores - ' + this.score + 'm', content: content };
+      if (this.scoresSha) body.sha = this.scoresSha;
+      const res = await fetch(this.SCORES_API_URL, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'token ' + this.GITHUB_TOKEN,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        this.scoresSha = data.content ? data.content.sha : this.scoresSha;
+        console.log('Skorlar GitHub\'a push edildi!');
+      }
+    } catch (e) {
+      console.log('GitHub push hatası:', e);
+    }
+    this.syncingScores = false;
+  }
+
   saveScore(name) {
     this.scores.push({ name: name.toUpperCase(), score: this.score, date: Date.now() });
     this.scores.sort((a, b) => b.score - a.score);
     if (this.scores.length > 10) this.scores.length = 10;
     localStorage.setItem('skyclimber_scores', JSON.stringify(this.scores));
+    this.pushOnlineScores();
   }
 
   renderScoreboard(targetEl) {
